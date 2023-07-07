@@ -11,36 +11,37 @@ from .models import User
 class  UserLoginSchema(BaseModel):
     email: EmailStr
     password: SecretStr
-    session_id: str = None
-
-    @root_validator
+   
+    @root_validator 
     def validate_user(cls, values):
         err_msg = "Incorrect credentials enterd, please try again"
         email = values.get("email") or None
+        print(email)
         password = values.get("password") or None
+        print(password)
 
         if email is None or password is None:
             raise ValueError(err_msg)
     
         password = password.get_secret_value()
-        user_obj =  auth.authenticate(email, password)
-    
+        user_obj =  auth.authenticate(email, password) 
         if  user_obj is None:
-            raise ValueError(user_obj)
+            raise ValueError("Invalid credentials:")
         token = auth.login(user_obj)
-        return {"session_id": token}
+        print(token)
+        return {"intercom":token}
 
 class UserSignupSchema(BaseModel):
     email: EmailStr
-    password: SecretStr
-    password_confirm: SecretStr
+    password: str
+    password_confirm: str
         
     
     @validator("email")
     def email_available(cls, v, values, **kwargs):
         q = User.objects.filter(email=v).allow_filtering()
         if q.count() != 0:
-            raise ValueError("Email is not available")
+            raise ValueError("An user with the same email address already exists")
         return v
         
     @validator("password_confirm")
