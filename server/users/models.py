@@ -3,15 +3,27 @@ from server.config import get_settings
 from cassandra.cqlengine import columns
 from cassandra.cqlengine.models import Model
 from . import exceptions, security, validators
-
+from datetime import datetime
+from cassandra.cqlengine.columns import DateTime
 
 settings = get_settings()
 
+class DateTimeWithUpdate(columns.DateTime):
+    def pre_save(self, model_instance, column):
+        value = super().pre_save(model_instance, column)
+        setattr(model_instance, column.db_field, value)
+        return value
+
+
 class User(Model):
     __keyspace__ = settings.keyspace
+    __table_name__ = 'user'
     uid = columns.UUID(primary_key=True, default=uuid.uuid4)
     email = columns.Text(primary_key=True)
     password = columns.Text()
+    create_time = DateTime(default=datetime.now)
+    update_time = DateTimeWithUpdate(default=datetime.now)
+
 
     def __str__(self):
         return self.__repr__()
