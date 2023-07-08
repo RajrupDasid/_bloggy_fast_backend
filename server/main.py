@@ -1,8 +1,7 @@
 import json
 import pathlib
 from typing import Optional,List
-from fastapi import FastAPI, Request, Form, status, HTTPException
-
+from fastapi import FastAPI, Request, Form, status, HTTPException,WebSocket, Response, Cookie, Depends
 from .config import get_settings
 from starlette.middleware.authentication import AuthenticationMiddleware
 from starlette.authentication import requires
@@ -25,8 +24,7 @@ from .logs.models import Log, CustomLogger
 from cassandra.cqlengine.query import BatchQuery
 from cassandra.query import SimpleStatement
 from fastapi.encoders import jsonable_encoder
-
-
+from .ses.security import sessionid, csrfid, generate_key, encrypt_token, decrypt_token
 
 app = FastAPI()
 
@@ -63,7 +61,7 @@ class UserRegistrationResponse(BaseModel):
     password: SecretStr
 
 @app.post('/users/signup', response_model=UserRegistrationResponse)
-async def create_user(request: UserLoginSchema):
+async def create_user(request: UserSignupSchema):
     try:
         email = request.email
         password = request.password
@@ -76,64 +74,53 @@ async def create_user(request: UserLoginSchema):
         CustomLogger.log_error(error_message)
         return JSONResponse(content={"error": "Internal Server Error"}, status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+
 class LoginResponse(BaseModel):
     email: EmailStr
     password: SecretStr
 
 
 @app.post("/users/login")
-
 async def login_user(request: LoginResponse):
     try:
         email = request.email
         password = request.password.get_secret_value()
 
         if not email or not password:
-            raise HTTPException(status_code=400, detail="Incorrect credentials entered, please try again")
+            error_message = "User made a blank request"
+            CustomLogger.log_error(error_message)
+            return JSONResponse(content={"error":"Details cannot be blanked"}, status_code = status.HTTP_400_BAD_REQUEST)
 
         user_obj = auth.authenticate(email, password)
         if user_obj is None:
-            raise HTTPException(status_code=401, detail="Invalid credentials")
+            error_message = f"User with email - {email} is either not exists or gave wrong credential"
+            CustomLogger.log_error(error_message)
+            return JSONResponse(content={"error":"User credential not matched"}, status_code = status.HTTP_404_NOT_FOUND)
 
         token = auth.login(user_obj)
+        key = generate_key()
+        etoken = encrypt_token(token,key)
 
-        return {"intercom": token}
-    except Exception as e:
-        print(e)
-        raise HTTPException(status_code=500, detail="An error occurred while processing the login")
-
-
-
-
-
-
-
-
-
-
-
-
-
-    #try:
-     #   email = request.email
-     #   password = request.password
-    #    raw_data = {
-
-     #       "email": email,
-      #      "password": password,
-     #   }
-      #  user_login = UserLoginSchema(**raw_data)
-     #   user_login.validate_user()
-       # data, errors = utils.valid_schema_data_or_error(raw_data,UserLoginSchema)
-        #context = {
-        #    "data" : data,
-        #    "error": errors
-        #}
+        response = {"intercom":etoken, "_intercom_csrf_token": csrfid() , "_intercom_session_id":sessionid()}
+        success_message = f"User successfully logged in - the user details is -logged in user email-{email} - logged in user token {token} - logged in user response {response}"
+        CustomLogger.log_success(success_message)
+        return response
         
-       # return JSONResponse(content={"ojj":"nlcnlzxnclzxnclzxnclz"})
-   # except Exception as e:
-    #    print (e)
-    #    return JSONResponse(content={"error":" please rectify the logic"})
+    except Exception as e:
+        error_message = f"Something went wrong and the error debugging is - {str(e)}"
+        CustomLogger.log_error(error_message)
+
+        return JSONResponse(content={"error":"Server error occured"}, status_code = status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class IndexPage(BaseModel):
+    response : str
+
+@app.get("/")
+async def index():
+    response = "Hello world"
+    return response
+        
 
 
 
@@ -156,33 +143,11 @@ async def get_logs():
         )
         response.append(log_response)
     return JSONResponse(content=jsonable_encoder(response))
-    
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 # class AllUser(BaseModel):
   #  email: str
    #  password: str
-
-
 
 # @app.get('/users', response_model=List[AllUser])
 # async def get_users():
