@@ -25,6 +25,7 @@ from cassandra.cqlengine.query import BatchQuery
 from cassandra.query import SimpleStatement
 from fastapi.encoders import jsonable_encoder
 from .ses.security import sessionid, csrfid, generate_key, encrypt_token, decrypt_token
+from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI()
 
@@ -32,6 +33,13 @@ app = FastAPI()
 DB_SESSION = None
 BASE_DIR = pathlib.Path(__file__).resolve().parent # app/
 #app.add_middleware(AuthenticationMiddleware, backend=JWTCookieBackend())
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Set this to restrict origins, e.g., ["http://localhost", "https://example.com"]
+    allow_credentials=True,
+    allow_methods=["*"],  # Set this to restrict HTTP methods, e.g., ["GET", "POST"]
+    allow_headers=["*"],  # Set this to restrict headers, e.g., ["X-Requested-With", "Content-Type"]
+)
 
 
 @app.on_event("startup")
@@ -64,9 +72,11 @@ class UserRegistrationResponse(BaseModel):
 async def create_user(request: UserSignupSchema):
     try:
         email = request.email
+        username = request.username
         password = request.password
-        user = User.create_user(email, password)
-        success_message = f"User created successfully - Email -  {email}"
+
+        user = User.create_user(email,username, password)
+        success_message = f"User with {username} - {email} has been  created successfully"
         CustomLogger.log_success(success_message)
         return JSONResponse(content={"Success":"User singned_up successfully"}, status_code=status.HTTP_201_CREATED)
     except Exception as e:
@@ -116,10 +126,10 @@ async def login_user(request: LoginResponse):
 class IndexPage(BaseModel):
     response : str
 
-@app.get("/")
-async def index():
-    response = "Hello world"
-    return response
+# @app.get("/")
+# async def index():
+ #   response = "Hello world"
+  #  return response
         
 
 
