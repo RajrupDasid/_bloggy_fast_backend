@@ -19,6 +19,7 @@ class User(Model):
     __keyspace__ = settings.keyspace
     __table_name__ = 'user'
     uid = columns.UUID(primary_key=True, default=uuid.uuid4)
+    username = columns.Text()
     email = columns.Text(primary_key=True)
     password = columns.Text()
     create_time = DateTime(default=datetime.now)
@@ -44,25 +45,32 @@ class User(Model):
         return verified
 
     @staticmethod
-    def create_user(email, password=None):
+    def create_user(email,username, password=None):
         q = User.objects.filter(email=email).allow_filtering()
         if q.count() != 0:
             raise exceptions.UserHasAccountException("An user with same email already exists")
-       # v = User.objects.filter(username=username)
-        # if v.count() !=0 :
-          #  raise exceptions.UsernameTakenException("An user with this user name already exists")
+        v = User.objects.filter(username=username).allow_filtering()
+        if v.count() !=0 :
+            raise exceptions.UsernameException("An user with this user name already exists")
         valid, msg, email = validators._validate_email(email)
         if not valid:
             raise exceptions.InvalidEmailException(f"Invalid email:{msg}")
-        obj = User(email=email)
+        obj = User(email=email, username=username)
         obj.set_password(password)
         obj.save()
         return obj
 
     @staticmethod
-    def check_exists(uid):
-        q = User.objects.filter(uid=uid).allow_filtering()
-        return q.count() != 0
+    def check_exists(username,email):
+        q = User.objects.filter(username=username).allow_filtering()
+        p = User.objects.filter(email=email).allow_filtering()
+
+        return  q.count() != 0 or p.count() !=0
+    
+    @staticmethod
+    def check_user_by_uid(uid):
+        v = User.objects.filter(uid=uid).allow_filtering()
+        return v.count() !=0
 
     @staticmethod
     def by_user_id(uid=None):
