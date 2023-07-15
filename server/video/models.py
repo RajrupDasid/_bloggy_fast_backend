@@ -24,6 +24,11 @@ class Video(Model):
     title = columns.Text()
     description = columns.Text()
     file_name = columns.Text()
+    video_start_time=DateTime()
+    video_end_time=DateTime()
+    video_likes=columns.Text()
+    video_dislikes=columns.Text()
+    video_comment=columns.Text()
     create_time = DateTime(default=datetime.now)
     update_time = DateTimeWithUpdate(default=datetime.now)
 
