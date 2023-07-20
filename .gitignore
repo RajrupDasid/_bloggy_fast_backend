@@ -3,6 +3,7 @@
 ### Fast API ###
 .env 
 server/unencrypted
+logs.json
 env
 ### Django ###
 *.log
